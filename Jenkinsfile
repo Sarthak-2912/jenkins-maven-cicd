@@ -1,60 +1,62 @@
+
 pipeline {
     agent any
 
     tools {
-        // Must match the Maven name configured in Jenkins -> Tools
         maven 'Maven-3'
     }
 
     environment {
-        DEPLOY_DIR = '/tmp/jenkins-deployed-app'
-        APP_JAR = 'target/jenkins-maven-cicd-1.0.0.jar'
+        DEPLOY_DIR = 'C:\\jenkins-deployed-app'
+        APP_JAR = 'target\\jenkins-maven-cicd-1.0.0.jar'
     }
 
     stages {
         stage('Checkout Code') {
             steps {
-                echo 'Checking out source code from Git...'
+                echo 'Checking out code from GitHub...'
                 checkout scm
             }
         }
 
         stage('Compile') {
             steps {
-                echo 'Compiling Java source code...'
-                sh 'mvn clean compile'
+                echo 'Compiling Java application...'
+                bat 'mvn clean compile'
             }
         }
 
         stage('Unit Testing') {
             steps {
                 echo 'Running JUnit tests...'
-                sh 'mvn test'
+                bat 'mvn test'
             }
             post {
                 always {
-                    // Publishes test results to the Jenkins dashboard
-                    junit 'target/surefire-reports/*.xml'
+                    junit allowEmptyResults: false,
+                          testResults: 'target/surefire-reports/*.xml'
                 }
             }
         }
 
         stage('Package Application') {
             steps {
-                echo 'Packaging application into JAR...'
-                // -DskipTests avoids running tests twice since they ran in the previous stage
-                sh 'mvn package -DskipTests'
-                archiveArtifacts artifacts: 'target/*.jar', fingerprint: true
+                echo 'Creating JAR file...'
+                bat 'mvn package -DskipTests'
+
+                archiveArtifacts artifacts: 'target/*.jar',
+                                 fingerprint: true
             }
         }
 
         stage('Deploy Automatically') {
             steps {
-                echo 'Deploying application to target environment...'
-                sh '''
-                    mkdir -p ${DEPLOY_DIR}
-                    cp ${APP_JAR} ${DEPLOY_DIR}/app.jar
-                    java -jar ${DEPLOY_DIR}/app.jar
+                echo 'Deploying application on Windows...'
+
+                bat '''
+                    if not exist "%DEPLOY_DIR%" mkdir "%DEPLOY_DIR%"
+                    copy /Y "%APP_JAR%" "%DEPLOY_DIR%\\app.jar"
+                    java -jar "%DEPLOY_DIR%\\app.jar"
                 '''
             }
         }
@@ -62,10 +64,11 @@ pipeline {
 
     post {
         success {
-            echo 'Pipeline completed successfully! Application is live.'
+            echo 'SUCCESS! All pipeline stages completed.'
         }
+
         failure {
-            echo 'Pipeline failed. Check console logs or test reports.'
+            echo 'Pipeline failed. Check Console Output.'
         }
     }
 }
